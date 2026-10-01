@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "gemedev/Application.hpp"
 
 #include "scenes.hpp"
@@ -45,12 +43,16 @@ namespace flappy::menu {
             .texture = titleTexture,
         });
 
-        scene.onClick(title, [&app, &scene, title] {
-            scene.animate(title)
-                .positionTo({-2.0f, 0.5f}, 1.0f)
-                .onComplete([&app] {
-                    app.scenes().activate("game");
-                });
+        scene.onClick(title, [&app] {
+            app.scenes().transitionTo(
+                "game",
+                gd::Transition::slideLeft(1.0f),
+                [&app] {
+                    if (auto* game = app.scenes().find("game")) {
+                        game->setPaused(false);
+                    }
+                }
+            );
         });
     }
 }

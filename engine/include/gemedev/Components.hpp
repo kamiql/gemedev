@@ -67,4 +67,39 @@ namespace gd {
     struct Motion {
         Vec2 velocity{};
     };
+
+    /** How a panorama texture is scaled to the current viewport before tiling. */
+    enum class PanoramaFit {
+        /** Stretch one tile to the viewport width and height, like setBackground(). */
+        Stretch,
+        /** Preserve aspect ratio and cover the viewport; overflow is cropped. */
+        Cover,
+        /** Preserve aspect ratio and show the full image; letterbox space is clear color. */
+        Contain,
+        /** Preserve aspect ratio and fit the full image height (best for side-scrolling). */
+        FitHeight
+    };
+
+    /**
+     * An infinitely repeated, horizontally scrolling image attached to an entity.
+     *
+     * It does not need a Transform. `fit` determines the base tile size for the
+     * current window; `scale` is an optional multiplier on that fitted size.
+     * `velocity` is in logical pixels per second. With `drivesCamera` enabled,
+     * it advances the scene camera (positive X progresses through the world, so
+     * world objects move left on screen). Otherwise it scrolls only this texture.
+     * `parallax` controls how much camera movement is applied to this layer:
+     * 1.0 keeps it aligned with world-space entities, 0.0 locks it to the screen.
+     */
+    struct Panorama {
+        TextureHandle texture{};
+        Vec2 velocity{-40.0f, 0.0f};
+        Vec2 scale{1.0f, 1.0f};
+        Vec2 offset{};
+        float parallax = 0.0f;
+        Color tint{};
+        int layer = -100;
+        PanoramaFit fit = PanoramaFit::Stretch;
+        bool drivesCamera = false;
+    };
 } // namespace gd

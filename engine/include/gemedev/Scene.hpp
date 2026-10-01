@@ -80,6 +80,25 @@ namespace gd {
         /** Adds or replaces linear movement and returns the stored component. */
         Motion &add(Entity entity, Motion value);
 
+        /** Adds or replaces a tiled scrolling panorama and returns it. */
+        Panorama &add(Entity entity, Panorama value);
+
+        /** Returns a panorama pointer, or null if the entity has none. */
+        Panorama *panorama(Entity entity) noexcept;
+
+        /** Returns a read-only panorama pointer, or null if the entity has none. */
+        const Panorama *panorama(Entity entity) const noexcept;
+
+        /** Converts an absolute world-space top-left position to screen pixels. */
+        Vec2 worldToScreen(Vec2 position) const noexcept {
+            return position - camera_;
+        }
+
+        /** Converts screen pixels to an absolute world-space top-left position. */
+        Vec2 screenToWorld(Vec2 position) const noexcept {
+            return position + camera_;
+        }
+
         /** Returns a transform pointer, or null if it is not present. */
         Transform *transform(Entity entity) noexcept;
 
@@ -186,6 +205,7 @@ namespace gd {
             std::optional<Shape> shape;
             std::optional<Text> text;
             std::optional<Motion> motion;
+            std::optional<Panorama> panorama;
             std::function<void()> click;
         };
 

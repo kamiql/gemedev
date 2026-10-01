@@ -58,6 +58,21 @@ public:
     /** Draws a screen-space textured background without an outline. */
     void drawBackground(const TextureHandle& texture);
 
+    /** Draws a fitted, horizontally repeated texture shifted by a pixel offset. */
+    void drawPanorama(
+        const TextureHandle& texture,
+        Vec2 offset,
+        Vec2 scale,
+        Color tint,
+        PanoramaFit fit
+    );
+    /** Draws a viewport-sized solid-color rectangle. */
+    void drawSolidBackground(Color color);
+    /** Sets a pixel-space translation applied to all subsequent draw calls. */
+    void setOffset(Vec2 offset) noexcept { drawOffset_ = offset; }
+    /** Sets a global alpha multiplier applied to all subsequent draw calls. */
+    void setOpacity(float opacity) noexcept;
+
 private:
     /** Draws a textured quad or triangle, optionally with a red outline. */
     void drawQuad(
@@ -80,6 +95,8 @@ private:
     int framebufferHeight_ = 1;
     int windowWidth_ = 1;
     int windowHeight_ = 1;
+    Vec2 drawOffset_{};
+    float opacity_ = 1.0f;
 };
 
 } // namespace gd

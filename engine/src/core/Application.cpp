@@ -39,7 +39,6 @@ namespace gd {
         using Clock = std::chrono::steady_clock;
         const auto started = Clock::now();
         auto last = started;
-
         state.runtimeSeconds = 0.0;
         state.deltaTime = 0.0f;
 
@@ -48,31 +47,27 @@ namespace gd {
 
         while (!state.quitting && !state.window.shouldClose()) {
             const auto now = Clock::now();
-
-            state.runtimeSeconds =
-                    std::chrono::duration<double>(now - started).count();
-
+            state.runtimeSeconds = std::chrono::duration<double>(now - started).count();
             const float dt = std::min(
                 0.1f,
                 std::chrono::duration<float>(now - last).count()
             );
             state.deltaTime = dt;
             last = now;
-
             state.window.poll(state.input);
 
             if (state.input.mousePressed(MouseButton::Left)) {
-                auto &scene = state.scenes.active();
-
-                scene.dispatchClick(
+                state.scenes.active().dispatchClick(
                     state.input.mousePosition(),
                     state.window.windowWidth(),
                     state.window.windowHeight()
                 );
             }
 
-            auto &scene = state.scenes.active();
-            scene.tick(state.input, dt);
+            // A transition request from a scene callback changes active() to its
+            // destination immediately, so run gameplay updates on that destination.
+            state.scenes.active().tick(state.input, dt);
+            Scene& scene = state.scenes.active();
 
             accumulated += dt;
             int iterations = 0;
@@ -82,22 +77,77 @@ namespace gd {
                 ++iterations;
             }
             if (iterations == 6) accumulated = 0;
-
             scene.update(dt);
-            state.renderer.begin(
-                state.window.framebufferWidth(),
-                state.window.framebufferHeight(),
-                state.window.windowWidth(),
-                state.window.windowHeight(),
-                scene.background()
-            );
-            state.renderer.drawBackground(scene.backgroundTexture());
-            scene.render(state.renderer);
+            state.scenes.advanceTransition(dt);
+
+            Scene* source = state.scenes.transitionSource();
+            if (!source) {
+                state.renderer.begin(
+                    state.window.framebufferWidth(),
+                    state.window.framebufferHeight(),
+                    state.window.windowWidth(),
+                    state.window.windowHeight(),
+                    scene.background()
+                );
+                state.renderer.drawBackground(scene.backgroundTexture());
+                scene.render(state.renderer);
+            } else {
+                state.renderer.begin(
+                    state.window.framebufferWidth(),
+                    state.window.framebufferHeight(),
+                    state.window.windowWidth(),
+                    state.window.windowHeight(),
+                    source->background()
+                );
+
+                const float progress = state.scenes.transitionProgress();
+                const Transition& transition = state.scenes.currentTransition();
+                const float width = static_cast<float>(state.window.windowWidth());
+                const auto drawScene = [&](Scene& current, Vec2 offset, float opacity) {
+                    state.renderer.setOffset(offset);
+                    state.renderer.setOpacity(opacity);
+                    state.renderer.drawSolidBackground(current.background());
+                    state.renderer.drawBackground(current.backgroundTexture());
+                    current.render(state.renderer);
+                };
+
+                switch (transition.type) {
+                    case TransitionType::CrossFade:
+                        drawScene(*source, {0.0f, 0.0f}, 1.0f);
+                        drawScene(scene, {0.0f, 0.0f}, progress);
+                        break;
+                    case TransitionType::SlideLeft:
+                        drawScene(*source, {-progress * width, 0.0f}, 1.0f);
+                        drawScene(scene, {(1.0f - progress) * width, 0.0f}, 1.0f);
+                        break;
+                    case TransitionType::SlideRight:
+                        drawScene(*source, {progress * width, 0.0f}, 1.0f);
+                        drawScene(scene, {-(1.0f - progress) * width, 0.0f}, 1.0f);
+                        break;
+                    case TransitionType::FadeThroughColor: {
+                        if (progress < 0.5f) {
+                            drawScene(*source, {0.0f, 0.0f}, 1.0f);
+                        } else {
+                            drawScene(scene, {0.0f, 0.0f}, 1.0f);
+                        }
+                        Color veil = transition.color;
+                        veil.a *= progress < 0.5f
+                                      ? progress * 2.0f
+                                      : (1.0f - progress) * 2.0f;
+                        state.renderer.setOffset({0.0f, 0.0f});
+                        state.renderer.setOpacity(1.0f);
+                        state.renderer.drawSolidBackground(veil);
+                        break;
+                    }
+                }
+                state.renderer.setOffset({0.0f, 0.0f});
+                state.renderer.setOpacity(1.0f);
+            }
             state.window.swap();
         }
 
         state.runtimeSeconds =
-                std::chrono::duration<double>(Clock::now() - started).count();
+            std::chrono::duration<double>(Clock::now() - started).count();
     }
 
     /** Marks the application for exit at the end of its current frame. */

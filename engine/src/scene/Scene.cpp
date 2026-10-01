@@ -125,6 +125,25 @@ namespace gd {
         return checked(entity).motion.emplace(std::move(value));
     }
 
+    /** Replaces an entity's infinitely tiled panorama component. */
+    Panorama &Scene::add(Entity entity, Panorama value) {
+        return checked(entity).panorama.emplace(std::move(value));
+    }
+
+    /** Returns an optional mutable panorama without throwing. */
+    Panorama *Scene::panorama(Entity entity) noexcept {
+        return valid(entity) && slots_[entity.index].panorama
+                   ? &*slots_[entity.index].panorama
+                   : nullptr;
+    }
+
+    /** Returns an optional read-only panorama without throwing. */
+    const Panorama *Scene::panorama(Entity entity) const noexcept {
+        return valid(entity) && slots_[entity.index].panorama
+                   ? &*slots_[entity.index].panorama
+                   : nullptr;
+    }
+
     /** Returns an optional mutable transform without throwing. */
     Transform *Scene::transform(Entity entity) noexcept {
         return valid(entity) && slots_[entity.index].transform
@@ -189,9 +208,21 @@ namespace gd {
         }
 
         for (auto &slot: slots_) {
-            if (slot.alive && slot.transform && slot.motion) {
-                slot.transform->position =
-                        slot.transform->position + slot.motion->velocity * dt;
+            if (!slot.alive) {
+                continue;
+            }
+            if (slot.transform && slot.motion) {
+                slot.transform->position = slot.transform->position + slot.motion->velocity * dt;
+            }
+            if (slot.panorama) {
+                if (slot.panorama->drivesCamera) {
+                    // A single world-space scroll can be driven by a panorama.
+                    // Additional driving panoramas contribute to the camera too,
+                    // which makes their velocity composition explicit.
+                    camera_ = camera_ + slot.panorama->velocity * dt;
+                } else {
+                    slot.panorama->offset = slot.panorama->offset + slot.panorama->velocity * dt;
+                }
             }
         }
     }
@@ -276,21 +307,15 @@ namespace gd {
         for (std::uint32_t i = 0; i < slots_.size(); ++i) {
             const auto &slot = slots_[i];
 
-            if (!slot.alive || !slot.transform) {
+            if (!slot.alive) {
                 continue;
             }
-
-            if (slot.sprite) {
-                drawables.push_back({slot.sprite->layer, i, 0});
+            if (slot.transform) {
+                if (slot.sprite) drawables.push_back({slot.sprite->layer, i, 0});
+                if (slot.shape) drawables.push_back({slot.shape->layer, i, 1});
+                if (slot.text) drawables.push_back({slot.text->layer, i, 2});
             }
-
-            if (slot.shape) {
-                drawables.push_back({slot.shape->layer, i, 1});
-            }
-
-            if (slot.text) {
-                drawables.push_back({slot.text->layer, i, 2});
-            }
+            if (slot.panorama) drawables.push_back({slot.panorama->layer, i, 3});
         }
 
         std::stable_sort(
@@ -303,6 +328,17 @@ namespace gd {
 
         for (const auto &drawable: drawables) {
             const auto &slot = slots_[drawable.index];
+            if (drawable.kind == 3) {
+                const auto &panorama = *slot.panorama;
+                renderer.drawPanorama(
+                    panorama.texture,
+                    panorama.offset - camera_ * panorama.parallax,
+                    panorama.scale,
+                    panorama.tint,
+                    panorama.fit
+                );
+                continue;
+            }
             Transform renderTransform = *slot.transform;
 
             // Relative is anchored to the screen, so the camera must not affect it.

@@ -183,7 +183,7 @@ Renderer2D::Renderer2D() {
                     discard;
                 }
 
-                FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                FragColor = vec4(1.0, 0.0, 0.0, uColor.a);
                 return;
             }
 
@@ -314,7 +314,11 @@ void Renderer2D::begin(
     windowWidth_ = std::max(1, windowWidth);
     windowHeight_ = std::max(1, windowHeight);
 
+    drawOffset_ = {};
+    opacity_ = 1.0f;
     glViewport(0, 0, framebufferWidth_, framebufferHeight_);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(clear.r, clear.g, clear.b, clear.a);
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -381,6 +385,9 @@ void Renderer2D::drawQuad(
 ) {
     const float w = size.x * transform.scale.x;
     const float h = size.y * transform.scale.y;
+    Transform translated = transform;
+    translated.position = translated.position + drawOffset_;
+    color.a *= opacity_;
 
     if (w == 0.0f || h == 0.0f || color.a <= 0.0f) {
         return;
@@ -413,9 +420,9 @@ void Renderer2D::drawQuad(
         const auto j = static_cast<std::size_t>(i * 6);
 
         vertices[j] =
-            transform.position.x + size.x * 0.5f + x * c - y * s;
+            translated.position.x + size.x * 0.5f + x * c - y * s;
         vertices[j + 1] =
-            transform.position.y + size.y * 0.5f + x * s + y * c;
+            translated.position.y + size.y * 0.5f + x * s + y * c;
 
         vertices[j + 2] = uv0.x + (uv1.x - uv0.x) * local.x;
         vertices[j + 3] = uv0.y + (uv1.y - uv0.y) * local.y;
@@ -462,7 +469,7 @@ void Renderer2D::drawQuad(
         if (outlinePass) {
             glUniform4f(
                 glGetUniformLocation(program_, "uColor"),
-                1.0f, 0.0f, 0.0f, 1.0f
+                1.0f, 0.0f, 0.0f, color.a
             );
         } else {
             glUniform4f(
@@ -617,6 +624,86 @@ void Renderer2D::drawBackground(const TextureHandle& texture) {
         texture,
         false
     );
+}
+
+/** Sets a global alpha multiplier, clamped to the normalized range. */
+void Renderer2D::setOpacity(float opacity) noexcept {
+    opacity_ = std::clamp(opacity, 0.0f, 1.0f);
+}
+
+/** Draws a viewport-sized color rectangle using the current transition state. */
+void Renderer2D::drawSolidBackground(Color color) {
+    draw(ShapeKind::Rectangle, Transform{TransformKind::Absolute, {0.0f, 0.0f}},
+         {static_cast<float>(windowWidth_), static_cast<float>(windowHeight_)},
+         color, {}, false);
+}
+
+/** Draws fitted, horizontally repeated copies across the viewport. */
+void Renderer2D::drawPanorama(
+    const TextureHandle& texture,
+    Vec2 offset,
+    Vec2 scale,
+    Color tint,
+    PanoramaFit fit
+) {
+    if (!texture) return;
+
+    const Vec2 imageSize = texture->size();
+    const float viewportWidth = static_cast<float>(std::max(1, windowWidth_));
+    const float viewportHeight = static_cast<float>(std::max(1, windowHeight_));
+    if (imageSize.x <= 0.0f || imageSize.y <= 0.0f) return;
+
+    const float fitX = viewportWidth / imageSize.x;
+    const float fitY = viewportHeight / imageSize.y;
+    float baseScaleX = fitX;
+    float baseScaleY = fitY;
+
+    switch (fit) {
+        case PanoramaFit::Stretch:
+            break;
+        case PanoramaFit::Cover: {
+            const float uniform = std::max(fitX, fitY);
+            baseScaleX = uniform;
+            baseScaleY = uniform;
+            break;
+        }
+        case PanoramaFit::Contain: {
+            const float uniform = std::min(fitX, fitY);
+            baseScaleX = uniform;
+            baseScaleY = uniform;
+            break;
+        }
+        case PanoramaFit::FitHeight:
+            baseScaleX = baseScaleY = fitY;
+            break;
+    }
+
+    const Vec2 tileSize{
+        imageSize.x * baseScaleX * std::abs(scale.x),
+        imageSize.y * baseScaleY * std::abs(scale.y)
+    };
+    if (tileSize.x <= 0.0f || tileSize.y <= 0.0f) return;
+
+    const auto firstTile = [](float phase, float extent) {
+        float position = std::fmod(phase, extent);
+        if (position > 0.0f) position -= extent;
+        return position;
+    };
+    const float startX = firstTile(offset.x, tileSize.x);
+    // Center fitted/cropped rows vertically; no vertical repetition is needed
+    // for a horizontally scrolling panorama.
+    const float y = (viewportHeight - tileSize.y) * 0.5f + offset.y;
+
+    for (float x = startX; x < viewportWidth; x += tileSize.x) {
+        draw(
+            ShapeKind::Rectangle,
+            Transform{TransformKind::Absolute, {x, y}},
+            tileSize,
+            tint,
+            texture,
+            false
+        );
+    }
 }
 
 /** Draws a screen-space rectangle through the internal renderer. */
