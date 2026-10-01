@@ -4,3 +4,4 @@ docs/generated/
 *.tmp
 *.user
 .DS_Store
+.idea
