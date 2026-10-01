@@ -1,0 +1,6 @@
+build/
+cmake-build-*/
+docs/generated/
+*.tmp
+*.user
+.DS_Store
