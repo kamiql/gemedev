@@ -12,10 +12,13 @@ namespace flappy::menu {
             asset("textures/menu/title.png")
         );
 
+        const gd::TextureHandle startTexture = app.assets().texture(
+            asset("textures/menu/start.png")
+        );
+
         scene.setBackground(backgroundTexture);
 
         auto const title = scene.createEntity("title");
-
         scene.add(title, gd::Transform{
             .kind = gd::TransformKind::Relative,
             .position = {0.0f, 0.5f},
@@ -35,7 +38,6 @@ namespace flappy::menu {
                 };
             }()
         });
-
         scene.add(title, gd::Sprite{
             .size = [](const gd::Vec2 textureSize) {
                 return textureSize;
@@ -43,10 +45,25 @@ namespace flappy::menu {
             .texture = titleTexture,
         });
 
-        scene.onClick(title, [&app] {
+        auto const start = scene.createEntity("start");
+        scene.add(start, gd::Transform{
+            .kind = gd::TransformKind::Relative,
+            .position = {0.0f, -0.25f},
+            .scale = {
+                0.3, 0.29
+            }
+        });
+        scene.add(start, gd::Sprite{
+            .size = [](const gd::Vec2 textureSize) {
+                return textureSize;
+            },
+            .texture = startTexture,
+        });
+
+        scene.onClick(start, [&app] {
             app.scenes().transitionTo(
                 "game",
-                gd::Transition::slideLeft(1.0f),
+                gd::Transition::slideLeft(0.5f),
                 [&app] {
                     if (auto* game = app.scenes().find("game")) {
                         game->setPaused(false);

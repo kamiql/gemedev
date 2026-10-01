@@ -36,7 +36,7 @@ public:
         Vec2 size,
         Color tint,
         const TextureHandle& texture,
-        bool outline = true
+        bool outline = false
     );
 
     /** Draws text at an absolute pixel position. */
