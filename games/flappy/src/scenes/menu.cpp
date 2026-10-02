@@ -5,15 +5,15 @@
 namespace flappy::menu {
     void setup(gd::Application &app, gd::Scene &scene) {
         const gd::TextureHandle backgroundTexture = app.assets().texture(
-            asset("textures/game/background.png")
+            asset("textures/background.png")
         );
 
         const gd::TextureHandle titleTexture = app.assets().texture(
-            asset("textures/menu/title.png")
+            asset("textures/title.png")
         );
 
         const gd::TextureHandle startTexture = app.assets().texture(
-            asset("textures/menu/start.png")
+            asset("textures/start.png")
         );
 
         scene.setBackground(backgroundTexture);
