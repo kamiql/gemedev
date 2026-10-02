@@ -91,11 +91,18 @@ Entity hitTest(
             if (isShape) {
                 size = slot.shape->size;
             } else {
-                const Vec2 textureSize = slot.sprite->texture
-                    ? slot.sprite->texture->size()
+                const TextureHandle *animatedTexture = slot.animation
+                    ? slot.animation->currentTexture()
+                    : nullptr;
+                const TextureHandle &texture =
+                    animatedTexture && *animatedTexture
+                        ? *animatedTexture
+                        : slot.sprite->texture;
+                const Vec2 textureSize = texture
+                    ? texture->size()
                     : Vec2{64.0f, 64.0f};
 
-                // Match Scene::render: the callback receives texture size.
+                // Match Scene::render: the callback receives current texture size.
                 size = slot.sprite->size(textureSize);
             }
         }

@@ -48,9 +48,9 @@ namespace flappy::menu {
         auto const start = scene.createEntity("start");
         scene.add(start, gd::Transform{
             .kind = gd::TransformKind::Relative,
-            .position = {0.0f, -0.25f},
+            .position = {0.0f, -0.3f},
             .scale = {
-                0.3, 0.29
+                0.25, 0.18
             }
         });
         scene.add(start, gd::Sprite{
@@ -60,6 +60,21 @@ namespace flappy::menu {
             .texture = startTexture,
         });
 
+        auto playerAnimation = scene.assets().animation(asset("textures/player"));
+        auto player = scene.createEntity("player");
+        scene.add(player, gd::Transform{
+            .kind = gd::TransformKind::Relative,
+            .position = { -0.5, -0.3 },
+            .scale = { 0.2, 0.2 }
+        });
+        scene.add(player, gd::Sprite{});
+        scene.add(player, gd::Animation {
+            playerAnimation,
+            "jump",
+            0
+        });
+
+        game::setup(app, *app.scenes().find("game"));
         scene.onClick(start, [&app] {
             app.scenes().transitionTo(
                 "game",

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <gemedev/Animation.hpp>
+#include <gemedev/Assets.hpp>
 #include <gemedev/Canvas.hpp>
 #include <gemedev/Components.hpp>
 #include <gemedev/Input.hpp>
@@ -50,6 +51,12 @@ namespace gd {
             return name_;
         }
 
+        /** Returns this scene's image, font, and keyframe asset cache. */
+        AssetCache &assets() noexcept { return assets_; }
+
+        /** Returns this scene's image, font, and keyframe asset cache. */
+        const AssetCache &assets() const noexcept { return assets_; }
+
         /** Allocates an entity and an optional persistent name. */
         Entity createEntity(std::string name = {});
 
@@ -80,6 +87,9 @@ namespace gd {
         /** Adds or replaces linear movement and returns the stored component. */
         Motion &add(Entity entity, Motion value);
 
+        /** Adds or replaces a texture keyframe animation and returns it. */
+        Animation &add(Entity entity, Animation value);
+
         /** Adds or replaces a tiled scrolling panorama and returns it. */
         Panorama &add(Entity entity, Panorama value);
 
@@ -104,6 +114,10 @@ namespace gd {
 
         /** Returns a read-only transform pointer, or null if it is not present. */
         const Transform *transform(Entity entity) const noexcept;
+
+        Animation* animation(Entity entity) noexcept;
+
+        const Animation* animation(Entity entity) const noexcept;
 
         /** Returns a sprite pointer, or null if it is not present. */
         Sprite *sprite(Entity entity) noexcept;
@@ -181,7 +195,6 @@ namespace gd {
 
         /** Removes entities, UI, animations, and persistent values. */
         void clear();
-
     private:
         TextureHandle backgroundTexture_;
 
@@ -205,6 +218,7 @@ namespace gd {
             std::optional<Shape> shape;
             std::optional<Text> text;
             std::optional<Motion> motion;
+            std::optional<Animation> animation;
             std::optional<Panorama> panorama;
             std::function<void()> click;
         };
@@ -233,6 +247,7 @@ namespace gd {
 
         std::string name_;
         std::uint64_t id_ = 0;
+        AssetCache assets_;
         std::vector<Slot> slots_;
         std::vector<std::uint32_t> free_;
         std::unordered_map<std::string, SaveValue> values_;

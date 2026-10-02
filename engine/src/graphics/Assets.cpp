@@ -5,8 +5,14 @@
 #include FT_FREETYPE_H
 #include <gemedev/Assets.hpp>
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <limits>
 #include <stdexcept>
+#include <string>
+#include <system_error>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 namespace gd {
 /** Takes ownership of a newly uploaded OpenGL texture. */
@@ -98,6 +104,140 @@ FontHandle AssetCache::font(const std::string& path, int pixelHeight) {
     fonts_[key] = loaded;
     return loaded;
 }
+/**
+ * Loads a keyframe animation folder. The manifest format is deliberately strict
+ * so missing clips, invalid durations, and unsafe relative paths fail early.
+ */
+AnimationHandle AssetCache::animation(const std::string& path) {
+    namespace fs = std::filesystem;
+    const fs::path directory = fs::path(path).lexically_normal();
+    const std::string cacheKey = directory.string();
+    if (auto cached = animations_[cacheKey].lock()) return cached;
+
+    const fs::path manifestPath = directory / "keyframes.json";
+    std::ifstream manifestFile(manifestPath);
+    if (!manifestFile) {
+        throw std::runtime_error(
+            "Cannot open animation manifest '" + manifestPath.string() + "'"
+        );
+    }
+
+    nlohmann::json document;
+    try {
+        manifestFile >> document;
+    } catch (const nlohmann::json::exception& error) {
+        throw std::runtime_error(
+            "Invalid animation manifest '" + manifestPath.string() + "': " +
+            error.what()
+        );
+    }
+
+    if (!document.is_object() || !document.contains("animations") ||
+        !document.at("animations").is_array() ||
+        document.at("animations").empty()) {
+        throw std::runtime_error(
+            "Animation manifest must contain a non-empty 'animations' array: '" +
+            manifestPath.string() + "'"
+        );
+    }
+
+    auto loaded = AnimationHandle(new AnimationAsset(cacheKey));
+    std::error_code filesystemError;
+    const fs::path basePath = directory / "base.png";
+    if (fs::is_regular_file(basePath, filesystemError)) {
+        loaded->baseTexture_ = texture(basePath.lexically_normal().string());
+    } else if (filesystemError) {
+        throw std::runtime_error(
+            "Cannot inspect base texture '" + basePath.string() + "': " +
+            filesystemError.message()
+        );
+    }
+
+    const auto isSafeSegment = [](const std::string& value) {
+        const fs::path segment(value);
+        return !value.empty() && value != "." && value != ".." &&
+               value.find_first_of("/\\") == std::string::npos &&
+               !segment.has_root_path() && !segment.has_parent_path() &&
+               segment.filename() == segment;
+    };
+
+    for (const auto& animationValue : document.at("animations")) {
+        if (!animationValue.is_object() ||
+            !animationValue.contains("name") ||
+            !animationValue.at("name").is_string() ||
+            !animationValue.contains("keyframes") ||
+            !animationValue.at("keyframes").is_array() ||
+            animationValue.at("keyframes").empty()) {
+            throw std::runtime_error(
+                "Each animation must have a non-empty name and keyframes array in '" +
+                manifestPath.string() + "'"
+            );
+        }
+
+        AnimationClip clip;
+        clip.name = animationValue.at("name").get<std::string>();
+        if (!isSafeSegment(clip.name)) {
+            throw std::runtime_error(
+                "Animation name must be a single safe folder name: '" + clip.name + "'"
+            );
+        }
+        if (loaded->clips_.contains(clip.name)) {
+            throw std::runtime_error("Duplicate animation name: '" + clip.name + "'");
+        }
+
+        for (const auto& keyframeValue : animationValue.at("keyframes")) {
+            if (!keyframeValue.is_object() ||
+                !keyframeValue.contains("id") ||
+                !keyframeValue.at("id").is_string() ||
+                !keyframeValue.contains("time")) {
+                throw std::runtime_error(
+                    "Each keyframe needs string 'id' and integer 'time' fields in animation '" +
+                    clip.name + "'"
+                );
+            }
+
+            AnimationKeyframe keyframe;
+            keyframe.id = keyframeValue.at("id").get<std::string>();
+            if (!isSafeSegment(keyframe.id)) {
+                throw std::runtime_error(
+                    "Keyframe id must be a single safe filename: '" + keyframe.id + "'"
+                );
+            }
+
+            const auto& timeValue = keyframeValue.at("time");
+            std::uint64_t durationMs = 0;
+            if (timeValue.is_number_unsigned()) {
+                durationMs = timeValue.get<std::uint64_t>();
+            } else if (timeValue.is_number_integer()) {
+                const auto signedDuration = timeValue.get<std::int64_t>();
+                if (signedDuration > 0) {
+                    durationMs = static_cast<std::uint64_t>(signedDuration);
+                }
+            }
+            if (durationMs == 0 ||
+                durationMs > std::numeric_limits<std::uint32_t>::max()) {
+                throw std::runtime_error(
+                    "Keyframe 'time' must be a positive 32-bit integer in milliseconds"
+                );
+            }
+            keyframe.durationMs = static_cast<std::uint32_t>(durationMs);
+
+            const fs::path framePath = directory / "animations" / clip.name / keyframe.id;
+            keyframe.texture = texture(framePath.lexically_normal().string());
+            clip.keyframes.push_back(std::move(keyframe));
+        }
+
+        loaded->clips_.emplace(clip.name, std::move(clip));
+    }
+
+    animations_[cacheKey] = loaded;
+    return loaded;
+}
+
 /** Drops cache references without invalidating external shared handles. */
-void AssetCache::clear() { textures_.clear(); fonts_.clear(); }
+void AssetCache::clear() {
+    textures_.clear();
+    fonts_.clear();
+    animations_.clear();
+}
 }

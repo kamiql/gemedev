@@ -10,14 +10,14 @@ int main() {
         .height = 720
     });
 
+    app.scenes().create("game");
+
     auto &menu = app.scenes().create("menu");
-    auto &game = app.scenes().create("game");
     auto &death = app.scenes().create("death");
 
     app.scenes().activate(menu.name());
 
     flappy::menu::setup(app, menu);
-    flappy::game::setup(app, game);
     flappy::death::setup(app, death);
 
     app.run();

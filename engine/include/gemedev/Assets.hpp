@@ -3,6 +3,8 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 #include <gemedev/Types.hpp>
 
 namespace gd {
@@ -85,7 +87,43 @@ private:
 };
 using TextureHandle = std::shared_ptr<Texture>;
 using FontHandle = std::shared_ptr<Font>;
-/** Loads and caches image and font resources by path. Requires an active GL context. */
+
+/** One image and its display duration in a keyframe animation. */
+struct AnimationKeyframe {
+    std::string id;
+    TextureHandle texture;
+    std::uint32_t durationMs = 0;
+};
+
+/** A named, ordered sequence of keyframes loaded from keyframes.json. */
+struct AnimationClip {
+    std::string name;
+    std::vector<AnimationKeyframe> keyframes;
+};
+
+/** A complete animation asset directory and its loaded textures. */
+class AnimationAsset {
+public:
+    /** Returns the source directory passed to AssetCache::animation(). */
+    const std::string& path() const noexcept { return path_; }
+    /** Returns base.png when present; otherwise an empty handle. */
+    const TextureHandle& baseTexture() const noexcept { return baseTexture_; }
+    /** Finds a named clip, or returns null if the name is unknown. */
+    const AnimationClip* findClip(const std::string& name) const noexcept {
+        const auto it = clips_.find(name);
+        return it != clips_.end() ? &it->second : nullptr;
+    }
+private:
+    friend class AssetCache;
+    explicit AnimationAsset(std::string path) : path_(std::move(path)) {}
+    std::string path_;
+    TextureHandle baseTexture_;
+    std::unordered_map<std::string, AnimationClip> clips_;
+};
+
+using AnimationHandle = std::shared_ptr<AnimationAsset>;
+
+/** Loads and caches image, font, and keyframe animation resources by path. Requires an active GL context. */
 class AssetCache {
 public:
     /** Creates an empty cache. */
@@ -94,10 +132,13 @@ public:
     TextureHandle texture(const std::string& path);
     /** Returns an ASCII font atlas cached by path and pixel height. */
     FontHandle font(const std::string& path, int pixelHeight = 24);
-    /** Releases cached handles; external handles may still own resources. */
+    /** Loads keyframes.json and its frame textures from an asset directory. */
+    AnimationHandle animation(const std::string& path);
+    /** Releases cache references; external handles may still own resources. */
     void clear();
 private:
     std::unordered_map<std::string, std::weak_ptr<Texture>> textures_;
     std::unordered_map<std::string, std::weak_ptr<Font>> fonts_;
+    std::unordered_map<std::string, std::weak_ptr<AnimationAsset>> animations_;
 };
 }

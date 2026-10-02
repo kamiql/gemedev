@@ -1,0 +1,67 @@
+{
+  "animations": [
+    {
+      "name": "idle",
+      "keyframes": [
+        {
+          "id": "1.png",
+          "time": 110
+        },
+        {
+          "id": "2.png",
+          "time": 110
+        },
+        {
+          "id": "3.png",
+          "time": 110
+        },
+        {
+          "id": "4.png",
+          "time": 110
+        }
+      ]
+    },
+    {
+      "name": "jump",
+      "keyframes": [
+        {
+          "id": "1.png",
+          "time": 85
+        },
+        {
+          "id": "2.png",
+          "time": 85
+        },
+        {
+          "id": "3.png",
+          "time": 85
+        },
+        {
+          "id": "4.png",
+          "time": 85
+        }
+      ]
+    },
+    {
+      "name": "fall",
+      "keyframes": [
+        {
+          "id": "1.png",
+          "time": 100
+        },
+        {
+          "id": "2.png",
+          "time": 100
+        },
+        {
+          "id": "3.png",
+          "time": 100
+        },
+        {
+          "id": "4.png",
+          "time": 100
+        }
+      ]
+    }
+  ]
+}

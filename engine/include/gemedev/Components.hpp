@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <functional>
 #include <gemedev/Assets.hpp>
 #include <gemedev/Types.hpp>
@@ -66,6 +67,28 @@ namespace gd {
     /** A world-unit-per-second linear movement component. */
     struct Motion {
         Vec2 velocity{};
+    };
+
+    /**
+     * Plays a named keyframe clip as the texture of an entity's Sprite.
+     * frame is the zero-based starting/current keyframe index. Each frame's
+     * duration is read from keyframes.json; playback loops by default.
+     */
+    struct Animation {
+        AnimationHandle animation{};
+        std::string clip;
+        std::size_t frame = 0;
+        double elapsedMs = 0.0;
+        bool loop = true;
+        bool playing = true;
+
+        /** Returns the current frame texture, or null for an invalid component. */
+        const TextureHandle* currentTexture() const noexcept {
+            if (!animation) return nullptr;
+            const auto* definition = animation->findClip(clip);
+            if (!definition || frame >= definition->keyframes.size()) return nullptr;
+            return &definition->keyframes[frame].texture;
+        }
     };
 
     /** How a panorama texture is scaled to the current viewport before tiling. */

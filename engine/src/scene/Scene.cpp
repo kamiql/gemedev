@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -125,6 +126,25 @@ namespace gd {
         return checked(entity).motion.emplace(std::move(value));
     }
 
+    /** Replaces an entity's keyframe animation after validating its clip. */
+    Animation &Scene::add(Entity entity, Animation value) {
+        auto &slot = checked(entity);
+        if (!value.animation) {
+            throw std::invalid_argument("Animation component requires an animation asset");
+        }
+        const auto *clip = value.animation->findClip(value.clip);
+        if (!clip) {
+            throw std::invalid_argument("Unknown animation clip: " + value.clip);
+        }
+        if (value.frame >= clip->keyframes.size()) {
+            throw std::out_of_range("Animation starting frame is out of range");
+        }
+        if (!std::isfinite(value.elapsedMs) || value.elapsedMs < 0.0) {
+            throw std::invalid_argument("Animation elapsed time must be finite and non-negative");
+        }
+        return slot.animation.emplace(std::move(value));
+    }
+
     /** Replaces an entity's infinitely tiled panorama component. */
     Panorama &Scene::add(Entity entity, Panorama value) {
         return checked(entity).panorama.emplace(std::move(value));
@@ -156,6 +176,18 @@ namespace gd {
         return valid(entity) && slots_[entity.index].transform
                    ? &*slots_[entity.index].transform
                    : nullptr;
+    }
+
+    Animation* Scene::animation(Entity entity) noexcept {
+        return valid(entity) && slots_[entity.index].animation
+            ? &*slots_[entity.index].animation
+            : nullptr;
+    }
+
+    const Animation* Scene::animation(Entity entity) const noexcept {
+        return valid(entity) && slots_[entity.index].animation
+            ? &*slots_[entity.index].animation
+            : nullptr;
     }
 
     /** Returns an optional sprite without throwing. */
@@ -227,10 +259,76 @@ namespace gd {
         }
     }
 
-    /** Advances all current property tweens. */
+    /** Advances property tweens and texture keyframes by a frame interval. */
     void Scene::update(float dt) {
-        if (!paused_) {
-            animations_.update(dt);
+        if (paused_) {
+            return;
+        }
+
+        animations_.update(dt);
+        if (!std::isfinite(dt) || dt <= 0.0f) {
+            return;
+        }
+
+        double remainingMs = static_cast<double>(dt) * 1000.0;
+        for (auto &slot : slots_) {
+            if (!slot.alive || !slot.animation || !slot.animation->playing ||
+                !slot.animation->animation) {
+                continue;
+            }
+
+            auto &playback = *slot.animation;
+            const auto *clip = playback.animation->findClip(playback.clip);
+            if (!clip || clip->keyframes.empty()) {
+                continue;
+            }
+            if (playback.frame >= clip->keyframes.size()) {
+                playback.frame = 0;
+                playback.elapsedMs = 0.0;
+            }
+
+            double remaining = remainingMs;
+            while (playback.playing && remaining > 0.0) {
+                // Skip complete loops in one operation if a large frame delta
+                // starts at the beginning of a looping clip.
+                if (playback.loop && playback.frame == 0 && playback.elapsedMs == 0.0) {
+                    double cycleDuration = 0.0;
+                    for (const auto &keyframe : clip->keyframes) {
+                        cycleDuration += keyframe.durationMs;
+                    }
+                    if (cycleDuration > 0.0 && remaining >= cycleDuration) {
+                        remaining = std::fmod(remaining, cycleDuration);
+                        if (remaining == 0.0) {
+                            break;
+                        }
+                    }
+                }
+
+                const auto duration = static_cast<double>(
+                    clip->keyframes[playback.frame].durationMs
+                );
+                const double timeLeft = duration - playback.elapsedMs;
+                if (timeLeft <= 0.0) {
+                    playback.elapsedMs = 0.0;
+                } else {
+                    const double step = std::min(remaining, timeLeft);
+                    playback.elapsedMs += step;
+                    remaining -= step;
+                    if (playback.elapsedMs + 1e-9 < duration) {
+                        break;
+                    }
+                    playback.elapsedMs = 0.0;
+                }
+
+                if (playback.frame + 1 < clip->keyframes.size()) {
+                    ++playback.frame;
+                } else if (playback.loop) {
+                    playback.frame = 0;
+                } else {
+                    playback.frame = clip->keyframes.size() - 1;
+                    playback.playing = false;
+                }
+            }
         }
     }
 
@@ -348,8 +446,15 @@ namespace gd {
             }
 
             if (drawable.kind == 0) {
-                const Vec2 inputSize = slot.sprite->texture
-                                           ? slot.sprite->texture->size()
+                const TextureHandle *animatedTexture = slot.animation
+                    ? slot.animation->currentTexture()
+                    : nullptr;
+                const TextureHandle &texture =
+                    animatedTexture && *animatedTexture
+                        ? *animatedTexture
+                        : slot.sprite->texture;
+                const Vec2 inputSize = texture
+                                           ? texture->size()
                                            : Vec2{64.0f, 64.0f};
 
                 renderer.draw(
@@ -357,7 +462,7 @@ namespace gd {
                     renderTransform,
                     slot.sprite->size(inputSize),
                     slot.sprite->tint,
-                    slot.sprite->texture
+                    texture
                 );
             } else if (drawable.kind == 1) {
                 renderer.draw(
