@@ -4,6 +4,7 @@
 #include <string>
 #include <gemedev/Application.hpp>
 
+#include "../logic/Tiles.hpp"
 #include "game/game.hpp"
 
 namespace survivor {
@@ -22,6 +23,7 @@ namespace survivor {
 
     struct Context {
         Scenes scenes;
+        std::vector<Tile> tiles;
         // app data, settings
     };
 

@@ -100,7 +100,7 @@ namespace survivor::game {
             });
         });
 
-        scene.setOverlay([&scene, &app, movementQueue](gd::Canvas canvas) {
+        scene.setOverlay([&scene, &app, movementQueue, context](gd::Canvas canvas) {
             const gd::Vec2 camera = scene.camera();
 
             constexpr float spacing = 100.0f;
@@ -129,6 +129,15 @@ namespace survivor::game {
                             { 4.0f, 4.0f },
                         },
                         { 0.0f, 0.2f, 1.0f, 1.0f }
+                    );
+
+                    canvas.rect(
+                        {
+                            screenPosition,
+                            { spacing, spacing },
+                        },
+                        {},
+                        context.tiles.front().texture
                     );
                 }
             }

@@ -1,5 +1,6 @@
 #include "gemedev/Application.hpp"
 #include "scenes/scenes.hpp"
+#include "logic/Tiles.hpp"
 
 int main() {
     auto app = gd::Application({
@@ -20,6 +21,7 @@ int main() {
 
     auto context = survivor::Context {
         scenes,
+        createTiles(app)
     };
 
     auto data = survivor::game::Game {};
