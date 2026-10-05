@@ -161,6 +161,13 @@ namespace gd {
         return impl_->window.windowHeight();
     }
 
+    Vec2 Application::middle() const noexcept {
+        return Vec2 {
+            width() / 2.0f,
+            height() / 2.0f
+        };
+    }
+
     /** Returns the context-bound resource cache. */
     AssetCache &Application::assets() noexcept { return impl_->assets; }
     /** Returns the audio service. */

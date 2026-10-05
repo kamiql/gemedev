@@ -62,6 +62,8 @@ namespace gd {
         /** Current window height in logical screen coordinates. */
         int height() const noexcept;
 
+        Vec2 middle() const noexcept;
+
     private:
         struct Impl;
         std::unique_ptr<Impl> impl_;
