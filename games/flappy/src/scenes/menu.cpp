@@ -1,6 +1,7 @@
 #include "gemedev/Application.hpp"
 
 #include "scenes.hpp"
+#include "../logic/HighScore.hpp"
 
 namespace flappy::menu {
     void setup(gd::Application &app, gd::Scene &scene) {
@@ -15,6 +16,8 @@ namespace flappy::menu {
         const gd::TextureHandle startTexture = app.assets().texture(
             asset("textures/start.png")
         );
+
+        const gd::FontHandle font = app.assets().font(asset("textures/font/Silkscreen.ttf"));
 
         scene.setBackground(backgroundTexture);
 
@@ -72,6 +75,14 @@ namespace flappy::menu {
             playerAnimation,
             "jump",
             0
+        });
+
+        scene.setOverlay([font](gd::Canvas canvas) {
+            canvas.text(
+                {0.0f, 0.0f},
+                "Highscore: " + std::to_string(highScore),
+                font
+            );
         });
 
         game::setup(app, *app.scenes().find("game"));

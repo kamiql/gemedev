@@ -3,15 +3,17 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "gemedev/Application.hpp"
 #include "scenes.hpp"
+#include "../logic/HighScore.hpp"
 
 namespace flappy::game {
     static gd::Entity background;
     static gd::Entity player;
 
-    int score = 0;
+    std::int64_t score = 0;
 
     struct PipePiece {
         gd::Entity entity;
@@ -144,6 +146,8 @@ namespace flappy::game {
                 constexpr float terminalVelocity = 400.0f;
 
                 auto restart = [&]() {
+                    highScore = std::max(highScore, score);
+                    std::cout << std::max(highScore, score);
                     currentScene.setPaused(true);
                     currentScene.clear();
                     setup(app, currentScene);

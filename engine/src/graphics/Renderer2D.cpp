@@ -539,7 +539,7 @@ void Renderer2D::drawText(
             font->id_,
             glyph.uv0,
             glyph.uv1,
-            true
+            false
         );
 
         pen.x += glyph.advance;
