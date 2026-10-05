@@ -178,16 +178,28 @@ namespace gd {
                    : nullptr;
     }
 
-    Animation* Scene::animation(Entity entity) noexcept {
-        return valid(entity) && slots_[entity.index].animation
-            ? &*slots_[entity.index].animation
-            : nullptr;
+    Motion *Scene::motion(Entity entity) noexcept {
+        return valid(entity) && slots_[entity.index].motion
+                   ? &*slots_[entity.index].motion
+                   : nullptr;
     }
 
-    const Animation* Scene::animation(Entity entity) const noexcept {
+    const Motion *Scene::motion(Entity entity) const noexcept {
+        return valid(entity) && slots_[entity.index].motion
+                   ? &*slots_[entity.index].motion
+                   : nullptr;
+    }
+
+    Animation *Scene::animation(Entity entity) noexcept {
         return valid(entity) && slots_[entity.index].animation
-            ? &*slots_[entity.index].animation
-            : nullptr;
+                   ? &*slots_[entity.index].animation
+                   : nullptr;
+    }
+
+    const Animation *Scene::animation(Entity entity) const noexcept {
+        return valid(entity) && slots_[entity.index].animation
+                   ? &*slots_[entity.index].animation
+                   : nullptr;
     }
 
     /** Returns an optional sprite without throwing. */
@@ -271,7 +283,7 @@ namespace gd {
         }
 
         double remainingMs = static_cast<double>(dt) * 1000.0;
-        for (auto &slot : slots_) {
+        for (auto &slot: slots_) {
             if (!slot.alive || !slot.animation || !slot.animation->playing ||
                 !slot.animation->animation) {
                 continue;
@@ -293,7 +305,7 @@ namespace gd {
                 // starts at the beginning of a looping clip.
                 if (playback.loop && playback.frame == 0 && playback.elapsedMs == 0.0) {
                     double cycleDuration = 0.0;
-                    for (const auto &keyframe : clip->keyframes) {
+                    for (const auto &keyframe: clip->keyframes) {
                         cycleDuration += keyframe.durationMs;
                     }
                     if (cycleDuration > 0.0 && remaining >= cycleDuration) {
@@ -447,12 +459,12 @@ namespace gd {
 
             if (drawable.kind == 0) {
                 const TextureHandle *animatedTexture = slot.animation
-                    ? slot.animation->currentTexture()
-                    : nullptr;
+                                                           ? slot.animation->currentTexture()
+                                                           : nullptr;
                 const TextureHandle &texture =
-                    animatedTexture && *animatedTexture
-                        ? *animatedTexture
-                        : slot.sprite->texture;
+                        animatedTexture && *animatedTexture
+                            ? *animatedTexture
+                            : slot.sprite->texture;
                 const Vec2 inputSize = texture
                                            ? texture->size()
                                            : Vec2{64.0f, 64.0f};

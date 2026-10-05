@@ -14,6 +14,8 @@ public:
     void triangle(Rect bounds, Color color = {}, TextureHandle texture = {});
     /** Draws text from a font atlas; text uses UTF-8 with unsupported glyphs replaced. */
     void text(Vec2 position, const std::string& value, FontHandle font, Color color = {});
+
+    void line(Vec2 from, Vec2 to, Color color);
 private:
     friend class Application;
     friend class Scene;

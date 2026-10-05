@@ -115,6 +115,10 @@ namespace gd {
         /** Returns a read-only transform pointer, or null if it is not present. */
         const Transform *transform(Entity entity) const noexcept;
 
+        Motion *motion(Entity entity) noexcept;
+
+        const Motion *motion(Entity entity) const noexcept;
+
         Animation* animation(Entity entity) noexcept;
 
         const Animation* animation(Entity entity) const noexcept;
